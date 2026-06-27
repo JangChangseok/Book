@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스네이크</title>
+  <style>
+    :root {
+      --bg:     #13121f;
+      --surf:   #1d1b2d;
+      --border: #2e2b42;
+      --accent: #f5c518;
+      --text:   #e8e4f2;
+      --muted:  #7c7a96;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    nav {
+      border-bottom: 1px solid var(--border);
+      height: 50px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .nav-home {
+      color: var(--accent);
+      text-decoration: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .nav-home:hover { opacity: 0.75; }
+    .nav-title {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .game-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px 20px;
+    }
+
+    #snake-canvas {
+      border: 2px solid var(--border);
+      display: block;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 120px;
+    }
+
+    .panel-box {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+
+    .panel-label {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .panel-value {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .hint kbd {
+      font-family: Consolas, 'Courier New', monospace;
+      background: var(--border);
+      padding: 1px 5px;
+      font-size: 0.68rem;
+    }
+
+    #start-btn {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 10px 16px;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.15s;
+    }
+    #start-btn:hover { opacity: 0.85; }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+    .overlay.show { display: flex; }
+    .overlay-box {
+      background: var(--surf);
+      border: 2px solid var(--border);
+      padding: 36px 48px;
+      text-align: center;
+    }
+    .overlay-box h2 {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .overlay-box p { color: var(--muted); margin-bottom: 24px; }
+    .overlay-box button {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 10px 28px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 560px) {
+      .game-area { flex-direction: column; align-items: center; }
+      .side-panel { flex-direction: row; flex-wrap: wrap; min-width: 0; width: 100%; max-width: 400px; }
+      .panel-box { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-home">← 홈</a>
+  <span class="nav-title">🐍 스네이크</span>
+  <span></span>
+</nav>
+
+<div class="game-area">
+  <canvas id="snake-canvas" width="400" height="400"></canvas>
+
+  <div class="side-panel">
+    <div class="panel-box">
+      <div class="panel-label">점수</div>
+      <div class="panel-value" id="score">0</div>
+    </div>
+    <div class="panel-box">
+      <div class="panel-label">최고점</div>
+      <div class="panel-value" id="best">0</div>
+    </div>
+    <div class="panel-box">
+      <div class="panel-label">레벨</div>
+      <div class="panel-value" id="level">1</div>
+    </div>
+    <div class="panel-box hint">
+      <kbd>↑↓←→</kbd> 방향<br>
+      <kbd>WASD</kbd> 도 가능
+    </div>
+    <button id="start-btn" onclick="startGame()">시작</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2>게임 오버</h2>
+    <p id="ov-msg">점수: 0</p>
+    <button onclick="startGame(); document.getElementById('overlay').classList.remove('show')">다시 하기</button>
+  </div>
+</div>
+
+<script>
+  const GRID = 20, CELL = 20;
+  const canvas = document.getElementById('snake-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  let snake, dir, nextDir, food, score, best, level, gameRunning, loopTimer;
+
+  best = parseInt(localStorage.getItem('snake-best') || '0');
+  document.getElementById('best').textContent = best;
+
+  function rand(n) { return Math.floor(Math.random() * n); }
+
+  function placeFood() {
+    const occupied = new Set(snake.map(s => s.x + ',' + s.y));
+    let f;
+    do { f = { x: rand(GRID), y: rand(GRID) }; }
+    while (occupied.has(f.x + ',' + f.y));
+    food = f;
+  }
+
+  function startGame() {
+    snake    = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir      = {x:1, y:0};
+    nextDir  = {x:1, y:0};
+    score    = 0;
+    level    = 1;
+    gameRunning = true;
+    placeFood();
+    updateUI();
+    clearInterval(loopTimer);
+    loopTimer = setInterval(step, intervalMs());
+    document.getElementById('start-btn').textContent = '재시작';
+  }
+
+  function intervalMs() { return Math.max(80, 200 - (level - 1) * 15); }
+
+  function step() {
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+    // 벽 충돌
+    if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) { endGame(); return; }
+    // 자기 몸 충돌
+    if (snake.some(s => s.x === head.x && s.y === head.y)) { endGame(); return; }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      score += 10;
+      level = Math.floor(score / 50) + 1;
+      placeFood();
+      clearInterval(loopTimer);
+      loopTimer = setInterval(step, intervalMs());
+    } else {
+      snake.pop();
+    }
+
+    updateUI();
+    draw();
+  }
+
+  function updateUI() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('level').textContent = level;
+  }
+
+  function endGame() {
+    gameRunning = false;
+    clearInterval(loopTimer);
+    if (score > best) {
+      best = score;
+      localStorage.setItem('snake-best', best);
+      document.getElementById('best').textContent = best;
+    }
+    document.getElementById('ov-msg').textContent = `점수: ${score}  |  최고: ${best}`;
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function draw() {
+    ctx.fillStyle = '#0a0916';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 격자
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= GRID; i++) {
+      ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(canvas.width,i*CELL); ctx.stroke();
+    }
+
+    // 먹이
+    ctx.fillStyle = '#e84855';
+    ctx.beginPath();
+    ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2 - 2, 0, Math.PI*2);
+    ctx.fill();
+    // 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(food.x*CELL + CELL/2 - 2, food.y*CELL + CELL/2 - 3, 3, 0, Math.PI*2);
+    ctx.fill();
+
+    // 뱀
+    snake.forEach((seg, i) => {
+      const t = 1 - i / snake.length;
+      ctx.fillStyle = i === 0
+        ? '#4ade80'
+        : `rgba(${Math.round(74*t)},${Math.round(222*t)},${Math.round(128*t)},0.9)`;
+      ctx.fillRect(seg.x*CELL + 1, seg.y*CELL + 1, CELL - 2, CELL - 2);
+      if (i === 0) {
+        // 눈
+        ctx.fillStyle = '#0a0916';
+        const ex = dir.x === 0 ? [4,12] : (dir.x > 0 ? [12,12] : [4,4]);
+        const ey = dir.y === 0 ? [4,12] : (dir.y > 0 ? [12,12] : [4,4]);
+        ctx.fillRect(seg.x*CELL + ex[0], seg.y*CELL + ey[0], 3, 3);
+        ctx.fillRect(seg.x*CELL + ex[1], seg.y*CELL + ey[1], 3, 3);
+      }
+    });
+  }
+
+  document.addEventListener('keydown', e => {
+    if (!gameRunning) return;
+    const map = {
+      ArrowUp:    {x:0,y:-1}, ArrowDown:  {x:0,y:1},
+      ArrowLeft:  {x:-1,y:0}, ArrowRight: {x:1,y:0},
+      KeyW:{x:0,y:-1}, KeyS:{x:0,y:1}, KeyA:{x:-1,y:0}, KeyD:{x:1,y:0},
+    };
+    const d = map[e.code];
+    if (!d) return;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+    // 반대 방향 금지
+    if (d.x === -dir.x && d.y === -dir.y) return;
+    nextDir = d;
+  });
+
+  // 초기 화면
+  ctx.fillStyle = '#0a0916';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#7c7a96';
+  ctx.font = '600 16px Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('시작 버튼을 누르세요', canvas.width/2, canvas.height/2);
+</script>
+</body>
+</html>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048</title>
+  <style>
+    :root {
+      --bg:     #13121f;
+      --surf:   #1d1b2d;
+      --border: #2e2b42;
+      --accent: #f5c518;
+      --text:   #e8e4f2;
+      --muted:  #7c7a96;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    nav {
+      border-bottom: 1px solid var(--border);
+      height: 50px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .nav-home {
+      color: var(--accent);
+      text-decoration: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .nav-home:hover { opacity: 0.75; }
+    .nav-title {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 16px;
+    }
+
+    .scorebar {
+      display: flex;
+      gap: 12px;
+    }
+
+    .score-box {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      text-align: center;
+      min-width: 90px;
+    }
+    .score-label {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .score-val {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hint {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── 보드 ── */
+    #board {
+      background: #1a1826;
+      border: 2px solid var(--border);
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      width: 360px;
+      height: 360px;
+    }
+
+    .tile-slot {
+      background: #13111e;
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .tile {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Consolas, 'Courier New', monospace;
+      font-weight: 700;
+      border-radius: 2px;
+      transition: transform 0.08s, opacity 0.08s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tile.new { animation: pop 0.12s ease; }
+
+    @keyframes pop {
+      0%   { transform: scale(0.6); opacity: 0.5; }
+      60%  { transform: scale(1.1); }
+      100% { transform: scale(1);   opacity: 1;   }
+    }
+
+    #new-btn {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 10px 28px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    #new-btn:hover { opacity: 0.85; }
+
+    /* 오버레이 */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+    .overlay.show { display: flex; }
+    .overlay-box {
+      background: var(--surf);
+      border: 2px solid var(--border);
+      padding: 36px 48px;
+      text-align: center;
+    }
+    .overlay-box h2 {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+    }
+    .overlay-box p { color: var(--muted); margin-bottom: 24px; }
+    .overlay-box button {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 10px 28px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 420px) {
+      #board { width: 300px; height: 300px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-home">← 홈</a>
+  <span class="nav-title">🔢 2048</span>
+  <span></span>
+</nav>
+
+<div class="game-area">
+  <div class="scorebar">
+    <div class="score-box">
+      <div class="score-label">점수</div>
+      <div class="score-val" id="score">0</div>
+    </div>
+    <div class="score-box">
+      <div class="score-label">최고점</div>
+      <div class="score-val" id="best">0</div>
+    </div>
+  </div>
+
+  <div class="hint">방향키 또는 WASD로 타일을 밀어라</div>
+
+  <div id="board"></div>
+
+  <button id="new-btn" onclick="newGame()">새 게임</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2 id="ov-title" style="color:var(--accent)">게임 오버</h2>
+    <p id="ov-msg">더 이상 이동할 수 없습니다.</p>
+    <button onclick="newGame(); document.getElementById('overlay').classList.remove('show')">다시 하기</button>
+  </div>
+</div>
+
+<script>
+  // 타일 색상
+  const TILE_STYLE = {
+    2:    { bg: '#2e2b42', fg: '#e8e4f2', fs: '1.5rem' },
+    4:    { bg: '#3a3656', fg: '#e8e4f2', fs: '1.5rem' },
+    8:    { bg: '#c87533', fg: '#fff',    fs: '1.5rem' },
+    16:   { bg: '#c86033', fg: '#fff',    fs: '1.5rem' },
+    32:   { bg: '#c84033', fg: '#fff',    fs: '1.5rem' },
+    64:   { bg: '#c82020', fg: '#fff',    fs: '1.5rem' },
+    128:  { bg: '#d4af00', fg: '#fff',    fs: '1.2rem' },
+    256:  { bg: '#d4c200', fg: '#fff',    fs: '1.2rem' },
+    512:  { bg: '#e0d000', fg: '#fff',    fs: '1.2rem' },
+    1024: { bg: '#f5c518', fg: '#111',    fs: '1rem'   },
+    2048: { bg: '#ffdf00', fg: '#111',    fs: '1rem'   },
+  };
+
+  const boardEl = document.getElementById('board');
+  let grid, score, best, won;
+
+  best = parseInt(localStorage.getItem('2048-best') || '0');
+  document.getElementById('best').textContent = best;
+
+  function newGame() {
+    grid  = Array.from({length: 4}, () => Array(4).fill(0));
+    score = 0;
+    won   = false;
+    addTile(); addTile();
+    renderBoard();
+    updateScore();
+  }
+
+  function addTile() {
+    const empty = [];
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++)
+        if (grid[r][c] === 0) empty.push([r,c]);
+    if (!empty.length) return;
+    const [r,c] = empty[Math.floor(Math.random() * empty.length)];
+    grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+    return [r,c];
+  }
+
+  function renderBoard(newCell) {
+    boardEl.innerHTML = '';
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const slot = document.createElement('div');
+        slot.className = 'tile-slot';
+        if (grid[r][c]) {
+          const v = grid[r][c];
+          const tile = document.createElement('div');
+          tile.className = 'tile' + (newCell && newCell[0]===r && newCell[1]===c ? ' new' : '');
+          const st = TILE_STYLE[v] || { bg:'#ffdf00', fg:'#111', fs:'0.9rem' };
+          tile.style.cssText = `background:${st.bg};color:${st.fg};font-size:${st.fs}`;
+          tile.textContent = v;
+          slot.appendChild(tile);
+        }
+        boardEl.appendChild(slot);
+      }
+    }
+  }
+
+  function updateScore() {
+    document.getElementById('score').textContent = score;
+    if (score > best) {
+      best = score;
+      localStorage.setItem('2048-best', best);
+      document.getElementById('best').textContent = best;
+    }
+  }
+
+  // ── 이동 로직 ──
+  function slideRow(row) {
+    let arr   = row.filter(v => v);
+    let added = 0;
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] === arr[i+1]) {
+        arr[i] *= 2;
+        score += arr[i];
+        arr.splice(i+1, 1);
+        added++;
+      }
+    }
+    while (arr.length < 4) arr.push(0);
+    return arr;
+  }
+
+  function move(dir) {
+    let moved = false;
+    const prev = JSON.stringify(grid);
+
+    if (dir === 'left') {
+      for (let r = 0; r < 4; r++) grid[r] = slideRow(grid[r]);
+    } else if (dir === 'right') {
+      for (let r = 0; r < 4; r++) grid[r] = slideRow([...grid[r]].reverse()).reverse();
+    } else if (dir === 'up') {
+      for (let c = 0; c < 4; c++) {
+        const col = slideRow(grid.map(r => r[c]));
+        for (let r = 0; r < 4; r++) grid[r][c] = col[r];
+      }
+    } else if (dir === 'down') {
+      for (let c = 0; c < 4; c++) {
+        const col = slideRow(grid.map(r => r[c]).reverse()).reverse();
+        for (let r = 0; r < 4; r++) grid[r][c] = col[r];
+      }
+    }
+
+    moved = JSON.stringify(grid) !== prev;
+    if (moved) {
+      const nc = addTile();
+      renderBoard(nc);
+      updateScore();
+
+      if (!won && grid.some(row => row.some(v => v === 2048))) {
+        won = true;
+        showOverlay('🎉 2048 달성!', '계속 플레이할 수 있습니다.', true);
+        return;
+      }
+      if (!canMove()) showOverlay('게임 오버', '더 이상 이동할 수 없습니다.', false);
+    }
+  }
+
+  function canMove() {
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++) {
+        if (grid[r][c] === 0) return true;
+        if (c < 3 && grid[r][c] === grid[r][c+1]) return true;
+        if (r < 3 && grid[r][c] === grid[r+1][c]) return true;
+      }
+    return false;
+  }
+
+  function showOverlay(title, msg, isWin) {
+    document.getElementById('ov-title').textContent = title;
+    document.getElementById('ov-title').style.color = isWin ? 'var(--accent)' : '#e84855';
+    document.getElementById('ov-msg').textContent   = msg;
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  document.addEventListener('keydown', e => {
+    const map = {
+      ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down',
+      KeyA:'left', KeyD:'right', KeyW:'up', KeyS:'down',
+    };
+    if (!map[e.code]) return;
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+    move(map[e.code]);
+  });
+
+  // 터치 스와이프
+  let tx, ty;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', e => {
+    if (tx == null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
+    else move(dy > 0 ? 'down' : 'up');
+    tx = ty = null;
+  }, {passive:true});
+
+  newGame();
+</script>
+</body>
+</html>

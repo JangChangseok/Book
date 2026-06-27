@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지뢰찾기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    nav {
+      background: #13121f;
+      border-bottom: 1px solid #2e2b42;
+      height: 50px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-home {
+      color: #f5c518;
+      text-decoration: none;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .nav-home:hover { opacity: 0.75; }
+    .nav-title {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: #e8e4f2;
+      font-weight: 700;
+    }
+
+    body {
+      background: #c0c0c0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+
+    .game-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+      color: #333;
+      letter-spacing: 1px;
+    }
+
+    .difficulty-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .difficulty-bar button {
+      padding: 5px 14px;
+      border: 2px outset #fff;
+      background: #c0c0c0;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .difficulty-bar button:active { border-style: inset; }
+    .difficulty-bar button.active {
+      border-style: inset;
+      background: #a8a8a8;
+    }
+
+    .game-shell {
+      border: 4px outset #fff;
+      background: #c0c0c0;
+      padding: 8px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #c0c0c0;
+      border: 2px inset #fff;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+    }
+
+    .lcd {
+      background: #000;
+      color: #f00;
+      font-family: 'Courier New', monospace;
+      font-size: 1.6rem;
+      font-weight: bold;
+      padding: 2px 6px;
+      min-width: 60px;
+      text-align: right;
+      letter-spacing: 2px;
+    }
+
+    #reset-btn {
+      width: 38px;
+      height: 38px;
+      font-size: 1.3rem;
+      border: 3px outset #fff;
+      background: #c0c0c0;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    #reset-btn:active { border-style: inset; }
+
+    .board-wrap {
+      border: 3px inset #fff;
+      display: inline-block;
+    }
+
+    #board {
+      display: grid;
+      gap: 0;
+    }
+
+    .cell {
+      width: 28px;
+      height: 28px;
+      border: 2px outset #fff;
+      background: #c0c0c0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .cell:active:not(.revealed):not(.flagged) { border-style: inset; }
+
+    .cell.revealed {
+      border: 1px solid #999;
+      background: #d4d0c8;
+      cursor: default;
+    }
+
+    .cell.flagged { cursor: pointer; }
+    .cell.mine-hit { background: #f00; }
+
+    .cell[data-n="1"] { color: #00f; }
+    .cell[data-n="2"] { color: #008000; }
+    .cell[data-n="3"] { color: #f00; }
+    .cell[data-n="4"] { color: #000080; }
+    .cell[data-n="5"] { color: #800000; }
+    .cell[data-n="6"] { color: #008080; }
+    .cell[data-n="7"] { color: #000; }
+    .cell[data-n="8"] { color: #808080; }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .overlay.show { display: flex; }
+
+    .overlay-box {
+      background: #c0c0c0;
+      border: 4px outset #fff;
+      padding: 28px 40px;
+      text-align: center;
+    }
+
+    .overlay-box h2 { font-size: 1.8rem; margin-bottom: 8px; }
+    .overlay-box p  { margin-bottom: 18px; color: #444; }
+
+    .overlay-box button {
+      padding: 8px 24px;
+      border: 3px outset #fff;
+      background: #c0c0c0;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .overlay-box button:active { border-style: inset; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-home">← 홈</a>
+  <span class="nav-title">💣 지뢰찾기</span>
+  <span></span>
+</nav>
+
+<div class="game-wrapper">
+  <h1>💣 지뢰찾기</h1>
+
+  <div class="difficulty-bar">
+    <button id="btn-easy"   onclick="setDifficulty('easy')">초급</button>
+    <button id="btn-medium" onclick="setDifficulty('medium')">중급</button>
+    <button id="btn-hard"   onclick="setDifficulty('hard')">고급</button>
+  </div>
+
+  <div class="game-shell">
+    <div class="status-bar">
+      <div class="lcd" id="mine-lcd">000</div>
+      <button id="reset-btn" onclick="newGame()">🙂</button>
+      <div class="lcd" id="time-lcd">000</div>
+    </div>
+    <div class="board-wrap">
+      <div id="board"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2 id="overlay-title"></h2>
+    <p  id="overlay-msg"></p>
+    <button onclick="newGame(); document.getElementById('overlay').classList.remove('show')">다시 하기</button>
+  </div>
+</div>
+
+<script>
+  const LEVELS = {
+    easy:   { rows: 9,  cols: 9,  mines: 10 },
+    medium: { rows: 16, cols: 16, mines: 40 },
+    hard:   { rows: 16, cols: 30, mines: 99 },
+  };
+
+  let cfg, grid, mineSet, revealed, flagged;
+  let firstClick, gameOver, timerID, elapsed, flagCount;
+
+  function setDifficulty(level) {
+    document.querySelectorAll('.difficulty-bar button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + level).classList.add('active');
+    cfg = LEVELS[level];
+    newGame();
+  }
+
+  function newGame() {
+    clearInterval(timerID);
+    elapsed    = 0;
+    firstClick = true;
+    gameOver   = false;
+    flagCount  = 0;
+    mineSet    = new Set();
+    revealed   = new Array(cfg.rows * cfg.cols).fill(false);
+    flagged    = new Array(cfg.rows * cfg.cols).fill(false);
+    grid       = new Array(cfg.rows * cfg.cols).fill(0);
+
+    document.getElementById('reset-btn').textContent = '🙂';
+    updateLcd('mine-lcd', cfg.mines);
+    updateLcd('time-lcd', 0);
+    renderBoard();
+  }
+
+  function updateLcd(id, val) {
+    document.getElementById(id).textContent = String(Math.min(val, 999)).padStart(3, '0');
+  }
+
+  function idx(r, c) { return r * cfg.cols + c; }
+
+  function placeMines(safeIdx) {
+    const total = cfg.rows * cfg.cols;
+    while (mineSet.size < cfg.mines) {
+      const i = Math.floor(Math.random() * total);
+      if (i !== safeIdx) mineSet.add(i);
+    }
+    for (let i = 0; i < total; i++) {
+      if (mineSet.has(i)) { grid[i] = -1; continue; }
+      const r = Math.floor(i / cfg.cols), c = i % cfg.cols;
+      let cnt = 0;
+      for (const [dr, dc] of neighbors) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < cfg.rows && nc >= 0 && nc < cfg.cols)
+          if (mineSet.has(idx(nr, nc))) cnt++;
+      }
+      grid[i] = cnt;
+    }
+  }
+
+  const neighbors = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+  function reveal(i) {
+    if (revealed[i] || flagged[i]) return;
+    revealed[i] = true;
+    const cell = document.querySelector(`[data-i="${i}"]`);
+    cell.classList.add('revealed');
+
+    if (mineSet.has(i)) {
+      cell.textContent = '💣';
+      cell.classList.add('mine-hit');
+      endGame(false);
+      return;
+    }
+
+    if (grid[i] > 0) {
+      cell.textContent = grid[i];
+      cell.setAttribute('data-n', grid[i]);
+      return;
+    }
+
+    const r = Math.floor(i / cfg.cols), c = i % cfg.cols;
+    for (const [dr, dc] of neighbors) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < cfg.rows && nc >= 0 && nc < cfg.cols)
+        reveal(idx(nr, nc));
+    }
+  }
+
+  function toggleFlag(i) {
+    if (revealed[i] || gameOver) return;
+    flagged[i] = !flagged[i];
+    flagCount += flagged[i] ? 1 : -1;
+    const cell = document.querySelector(`[data-i="${i}"]`);
+    cell.textContent = flagged[i] ? '🚩' : '';
+    cell.classList.toggle('flagged', flagged[i]);
+    updateLcd('mine-lcd', cfg.mines - flagCount);
+  }
+
+  function checkWin() {
+    const total = cfg.rows * cfg.cols;
+    for (let i = 0; i < total; i++) {
+      if (!mineSet.has(i) && !revealed[i]) return false;
+    }
+    return true;
+  }
+
+  function endGame(win) {
+    gameOver = true;
+    clearInterval(timerID);
+    document.getElementById('reset-btn').textContent = win ? '😎' : '😵';
+
+    if (!win) {
+      mineSet.forEach(i => {
+        if (!flagged[i] && !revealed[i]) {
+          const cell = document.querySelector(`[data-i="${i}"]`);
+          cell.textContent = '💣';
+          cell.classList.add('revealed');
+        }
+      });
+    }
+
+    setTimeout(() => {
+      const overlay = document.getElementById('overlay');
+      document.getElementById('overlay-title').textContent = win ? '🎉 승리!' : '💥 패배';
+      document.getElementById('overlay-msg').textContent   = win
+        ? `${elapsed}초 만에 클리어했습니다!`
+        : '지뢰를 밟았습니다.';
+      overlay.classList.add('show');
+    }, win ? 300 : 600);
+  }
+
+  function onLeftClick(i) {
+    if (gameOver || flagged[i] || revealed[i]) return;
+
+    if (firstClick) {
+      firstClick = false;
+      placeMines(i);
+      timerID = setInterval(() => {
+        elapsed++;
+        updateLcd('time-lcd', elapsed);
+      }, 1000);
+    }
+
+    reveal(i);
+    if (!gameOver && checkWin()) endGame(true);
+  }
+
+  function renderBoard() {
+    const board = document.getElementById('board');
+    board.style.gridTemplateColumns = `repeat(${cfg.cols}, 28px)`;
+    board.innerHTML = '';
+
+    for (let r = 0; r < cfg.rows; r++) {
+      for (let c = 0; c < cfg.cols; c++) {
+        const i = idx(r, c);
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.i = i;
+
+        cell.addEventListener('click',       () => onLeftClick(i));
+        cell.addEventListener('contextmenu', e  => { e.preventDefault(); toggleFlag(i); });
+
+        board.appendChild(cell);
+      }
+    }
+  }
+
+  cfg = LEVELS.easy;
+  document.getElementById('btn-easy').classList.add('active');
+  newGame();
+</script>
+</body>
+</html>
