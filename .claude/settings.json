@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,subprocess,os; d=sys.stdin.read(); j=json.loads(d); f=j.get('tool_input',{}).get('file_path',''); r='C:/Users/slmat/Documents/Claude Code/book'; (subprocess.run(['git','add',f],cwd=r), subprocess.run(['git','commit','-m','auto: update '+os.path.basename(f)],cwd=r) if subprocess.run(['git','diff','--cached','--quiet'],cwd=r).returncode else None) if f else None\" 2>/dev/null || true",
+            "statusMessage": "자동 커밋 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
